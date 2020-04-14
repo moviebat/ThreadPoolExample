@@ -21,6 +21,15 @@
     <ClInclude Include="dirent.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\head\ballDetect.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\head\I_BilliardsComDef.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\head\svm.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="example.cpp">

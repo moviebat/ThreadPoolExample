@@ -5,24 +5,30 @@
 #include <list>
 #include<string>
 #include<vector>;
-#include <opencv2/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
+#include <ballDetect.h>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 using namespace cv;
+
+#ifdef _MSC_VER
+#define SYMBOL_SLASH '\\'
+#else
+#define SYMBOL_SLASH '/'
+#endif // _MSC_VER
 
 typedef vector<std::future<void>> FUTUREVECTOR;
 
 unsigned short ThreadCount = 5;   //线程池大小
 
 cv::Mat map1, map2;
-cv::Mat m_curImg;
+cv::Mat m_curImg, desk;
 cv::Mat intrinsicMatrix = cv::Mat::eye(3, 3, CV_64F);
 cv::Mat distCoeffs = cv::Mat::zeros(5, 1, CV_64F);
 cv::Mat radical , tangential;
+BilliardsDetector bd;
 
-void remap(vector<string> vectorstring)
+void RemapImage(vector<string> vectorstring)
 {
 	printf("  hello, remap1 !  %d,size of array string is %d\n", std::this_thread::get_id(), vectorstring.size());		
 	//for (vector<string>::iterator it = vectorstring.begin(); it != vectorstring.end(); it++) {
@@ -35,10 +41,11 @@ void remap(vector<string> vectorstring)
 	for (int index = 0; index < vectorstring.size(); index++)
 	{
 		cv::Mat m_curImage = cv::imread(vectorstring[index]);
-		cv::imshow("cam 0", m_curImage);
+		//cv::imshow("cam 0", m_curImage);
 		try
 		{
-			cv::remap(m_curImage, m_curImage, map1, map2, cv::INTER_LINEAR);
+			//cv::remap(m_curImage, m_curImage, map1, map2, cv::INTER_LINEAR);
+			remap(m_curImage, m_curImage, bd.map1, bd.map2, cv::INTER_LINEAR);
 		}
 		catch (const cv::Exception& e)
 		{
@@ -94,9 +101,9 @@ int initParams(const string& calibFileName, cv::Mat deskMat) {
 	cv::Mat map1 = cv::Mat(imgSize, CV_32FC1);
 	cv::Mat map2 = cv::Mat(imgSize, CV_32FC1);
 
-	//initUndistortRectifyMap(intrinsicMatrix, distCoeffs, cv::Mat(),
-	//	getOptimalNewCameraMatrix(intrinsicMatrix, distCoeffs, imgSize, 1, imgSize, 0),
-	//	imgSize, CV_16SC2, map1, map2);
+	initUndistortRectifyMap(intrinsicMatrix, distCoeffs, cv::Mat(),
+		getOptimalNewCameraMatrix(intrinsicMatrix, distCoeffs, imgSize, 1, imgSize, 0),
+		imgSize, CV_16SC2, map1, map2);
 	
 	fs.release();
 	return 1;
@@ -139,6 +146,8 @@ bool readBmpFiles(string strDataDir, vector<string>&imageVector)
 
 
 int main() {
+	
+
 	try {
 		std::threadpool executor{ ThreadCount };
 
@@ -147,12 +156,17 @@ int main() {
 		std::string strCalibPath = 
 			"D:\\vs2015projects\\ThreadPoolExample\\bin\\calib\\calib_yunchuan_zhongguancun_24\\";
 		std::string calibFileName = strCalibPath + "camera_params.xml";
-		cv::Mat bmp = cv::imread(strDataDir + "frame_01724155");
+		desk = cv::imread(strCalibPath + "table" + SYMBOL_SLASH + "1" + SYMBOL_SLASH + "frame_00000001.bmp");
 
-		if (initParams(calibFileName, bmp) != 1) {
-			cout << "初始化参数失败，请检测路径!" << endl;
-			return 0;
-		}
+		std::string strModelPath = "D:\\vs2015projects\\ballDetect_dll\\models\\";
+
+		bd.initParams(strCalibPath + "camera_params.xml", strModelPath + "train.model", desk);
+		//if (initParams(calibFileName, desk) != 1) {
+		//	cout << "初始化参数失败，请检测路径!" << endl;
+		//	return 0;
+		//}
+		bd.initUnDistort(desk);
+
 		vector<string> arraystring(1000);
 		if (!readBmpFiles(strDataDir, arraystring)) {
 			cout << "读取图片列表失败，请检查目录!" << endl;
@@ -175,12 +189,18 @@ int main() {
 		for (int i = 0; i < ThreadCount; i++)
 		{
 			std::vector<string> tempVector(IndexCount);
-			tempVector.insert(tempVector.begin(), arraystring.begin() + IndexCount * i, arraystring.begin() + IndexCount * (i + 1));
+			if (i < ThreadCount - 1) {
+				tempVector.insert(tempVector.begin(), arraystring.begin() + IndexCount * i, arraystring.begin() + IndexCount * (i + 1));
+			}
+			else  //最后一个要兜底，可能没有那么多图片，计算要调整 
+			{
+				tempVector.insert(tempVector.begin(), arraystring.begin() + IndexCount * i, arraystring.end());
+			}			
 			std::cout << "vec " << i << ": ";
 			//for (int j = 0; j < tempVector.size(); j++)
 			//	std::cout << tempVector[j] << " ";
 			//std::cout << std::endl;
-			std::future<void> future = executor.commit(remap, tempVector);
+			std::future<void> future = executor.commit(RemapImage, tempVector);
 			//futurevector.push_back(future);
 		}
 
@@ -192,7 +212,7 @@ int main() {
 		std::cout << " =======  sleep ========= " << std::this_thread::get_id() << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(3));
 
-		//方法二，使用迭代器将容器中数据输出 
+		//方法二，使用迭代器将容器中数据输出
 		for (int j = 0; j < futurevector.size(); j++)
 			futurevector[j].get();
 

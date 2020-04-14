@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ThreadPool.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="dirent.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -31,6 +28,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\head\CommonDefine.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\head\ThreadPool.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

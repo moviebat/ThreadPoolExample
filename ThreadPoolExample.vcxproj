@@ -112,12 +112,16 @@
   <ItemGroup>
     <ClCompile Include="example.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="utils\BilliardsRemap.cpp" />
+    <ClCompile Include="utils\CommonUtils.cpp" />
+    <ClCompile Include="utils\IniParser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dirent.h" />
-    <ClInclude Include="include\head\ballDetect.h" />
-    <ClInclude Include="include\head\I_BilliardsComDef.h" />
-    <ClInclude Include="include\head\svm.h" />
+    <ClInclude Include="include\head\BilliardsRemap.h" />
+    <ClInclude Include="include\head\CommonDefine.h" />
+    <ClInclude Include="include\head\CommonUtils.h" />
+    <ClInclude Include="include\head\IniParser.h" />
     <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

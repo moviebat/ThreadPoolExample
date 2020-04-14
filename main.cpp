@@ -5,60 +5,36 @@
 #include <list>
 #include<string>
 #include<vector>;
-#include <ballDetect.h>
 #include <opencv2/opencv.hpp>
+#include "BilliardsRemap.h"
+#include "CommonUtils.h"
+#include "CommonDefine.h"
+#include "IniParser.h"
 
 using namespace std;
 using namespace cv;
 
-#ifdef _MSC_VER
-#define SYMBOL_SLASH '\\'
-#else
-#define SYMBOL_SLASH '/'
-#endif // _MSC_VER
-
 typedef vector<std::future<void>> FUTUREVECTOR;
-
 unsigned short ThreadCount = 5;   //线程池大小
-
-cv::Mat map1, map2;
-cv::Mat m_curImg, desk;
-cv::Mat intrinsicMatrix = cv::Mat::eye(3, 3, CV_64F);
-cv::Mat distCoeffs = cv::Mat::zeros(5, 1, CV_64F);
-cv::Mat radical , tangential;
-BilliardsDetector bd;
+BilliardsRemap m_remap;
+cv::Mat desk;
+string strDataDir, strCalibPath;
 
 void RemapImage(vector<string> vectorstring)
 {
-	printf("  hello, remap1 !  %d,size of array string is %d\n", std::this_thread::get_id(), vectorstring.size());		
-	//for (vector<string>::iterator it = vectorstring.begin(); it != vectorstring.end(); it++) {
-	//	cout << *it << endl;
-	//}
-
-	//for (int j = 0; j < vectorstring.size(); j++)
-	//	std::cout << vectorstring[j] << " ";
-	//std::cout << std::endl;
+	printf("  hello, remap1 !  %d\n", std::this_thread::get_id());		
 	for (int index = 0; index < vectorstring.size(); index++)
 	{
 		cv::Mat m_curImage = cv::imread(vectorstring[index]);
-		//cv::imshow("cam 0", m_curImage);
 		try
 		{
-			//cv::remap(m_curImage, m_curImage, map1, map2, cv::INTER_LINEAR);
-			remap(m_curImage, m_curImage, bd.map1, bd.map2, cv::INTER_LINEAR);
+			m_remap.remap(m_curImage);
+			cv::imwrite(vectorstring[index], m_curImage);
 		}
 		catch (const cv::Exception& e)
 		{
 			cout << "cv::remap exception, error code: " << e.code << ", error: " << e.err << endl;
-		}
-
-		char sTempFileName[200];
-		sprintf_s(sTempFileName, "%s", vectorstring[index]);
-		//DeleteFile(sTempFileName);
-		cv::imwrite(vectorstring[index], m_curImage);
-		//std::cout << "remap -- " << m_strCurDataDir + m_vecImageNames[index] << std::endl;
-		//if (cv::waitKey(delay) >= 0)
-		//	break;
+		}		
 	}
 }
 
@@ -84,33 +60,37 @@ public:
 };
 ///////////////////////////此处保留，供其他方式调用线程池使用
 
-int initParams(const string& calibFileName, cv::Mat deskMat) {
-	cv::FileStorage fs(calibFileName, cv::FileStorage::READ);
-	if (!fs.isOpened())
-		return -1;
-	fs["IntrinsicMatrix"] >> intrinsicMatrix;
-	fs["RadialDistortion"] >> radical;
-	fs["TangentialDistortion"] >> tangential;
+bool initParams() {
+	//从config配置文件中读取相关参数
+	std::string strCfgFile = CommonUtils::getCurExeFilePath() + "config" + DEFAULT_SYMBOL_SLASH + "billCamera.cfg";
+	if (!CommonUtils::isFileExist(strCfgFile))
+	{
+		std::cout << "Cannot find config/billiCamera.cfg.pls check." << endl;
+		return false;
+	}
 
-	distCoeffs.at<double>(0, 0) = radical.at<double>(0, 0);
-	distCoeffs.at<double>(1, 0) = radical.at<double>(1, 0);
-	distCoeffs.at<double>(2, 0) = tangential.at<double>(0, 0);
-	distCoeffs.at<double>(3, 0) = tangential.at<double>(1, 0);
+	IniParser parser(strCfgFile);
+	int error = parser.GetErrorCode();
+	if (error < 0)
+		return false;
 
-	cv::Size imgSize = deskMat.size();
-	cv::Mat map1 = cv::Mat(imgSize, CV_32FC1);
-	cv::Mat map2 = cv::Mat(imgSize, CV_32FC1);
+	strCalibPath = parser.GetIniKeyString("camera", "calib_data_path",
+		"D:\\vs2015projects\\ThreadPoolExample\\bin\\calib\\calib_yunchuan_zhongguancun_24\\");
 
-	initUndistortRectifyMap(intrinsicMatrix, distCoeffs, cv::Mat(),
-		getOptimalNewCameraMatrix(intrinsicMatrix, distCoeffs, imgSize, 1, imgSize, 0),
-		imgSize, CV_16SC2, map1, map2);
-	
-	fs.release();
-	return 1;
+	strDataDir = parser.GetIniKeyString("image", "data_dir",
+		 "D:\\vs2015projects\\ThreadPoolExample\\images\\");
+
+	std::string calibFileName = strCalibPath + "camera_params.xml";
+	std::string strTablePath = strCalibPath + "table" + DEFAULT_SYMBOL_SLASH + "1" + DEFAULT_SYMBOL_SLASH + "frame_00000001.bmp";
+
+	m_remap.initParams(calibFileName);
+	m_remap.initUnDistort(strTablePath);
+	//desk = cv::imread(strTablePath);
+	return true;
 }
 
 //从给定的目录中遍历所有的BMP图片，返回vector<string>
-bool readBmpFiles(string strDataDir, vector<string>&imageVector)
+bool readBmpFiles(vector<string>&imageVector)
 {
 	dirent* p_file = NULL;
 	const char* input_path = strDataDir.c_str();
@@ -147,35 +127,22 @@ bool readBmpFiles(string strDataDir, vector<string>&imageVector)
 
 int main() {
 	
-
 	try {
+		clock_t start = clock();
 		std::threadpool executor{ ThreadCount };
-
-		std::string strWorkDir = "D:\\vs2015projects\\ThreadPoolExample\\bin\\";
-		std::string strDataDir = "D:\\vs2015projects\\ThreadPoolExample\\images\\";
-		std::string strCalibPath = 
-			"D:\\vs2015projects\\ThreadPoolExample\\bin\\calib\\calib_yunchuan_zhongguancun_24\\";
-		std::string calibFileName = strCalibPath + "camera_params.xml";
-		desk = cv::imread(strCalibPath + "table" + SYMBOL_SLASH + "1" + SYMBOL_SLASH + "frame_00000001.bmp");
-
-		std::string strModelPath = "D:\\vs2015projects\\ballDetect_dll\\models\\";
-
-		bd.initParams(strCalibPath + "camera_params.xml", strModelPath + "train.model", desk);
-		//if (initParams(calibFileName, desk) != 1) {
-		//	cout << "初始化参数失败，请检测路径!" << endl;
-		//	return 0;
-		//}
-		bd.initUnDistort(desk);
+		if (initParams() != 1) {
+			cout << "初始化参数失败，请检测路径!" << endl;
+			return 0;
+		}
 
 		vector<string> arraystring(1000);
-		if (!readBmpFiles(strDataDir, arraystring)) {
+		if (!readBmpFiles(arraystring)) {
 			cout << "读取图片列表失败，请检查目录!" << endl;
 			return 0;
 		}
 
-
 		int ImageCount = arraystring.size();
-		cout << "******图片共有%d张 " << ImageCount << endl;
+		cout << "******图片共有张数： " << ImageCount << endl;
 		int IndexCount = 0;
 		if (ImageCount % ThreadCount != 0) {
 			IndexCount = ImageCount / ThreadCount + 1;
@@ -184,11 +151,11 @@ int main() {
 			IndexCount = ImageCount / ThreadCount;
 		}
 
-		cout << "IndexCount = %d " << IndexCount << endl;
-		FUTUREVECTOR futurevector(ThreadCount);
+		cout << "IndexCount = " << IndexCount << endl;
+		FUTUREVECTOR futurevector(0);
 		for (int i = 0; i < ThreadCount; i++)
 		{
-			std::vector<string> tempVector(IndexCount);
+			std::vector<string> tempVector(0);
 			if (i < ThreadCount - 1) {
 				tempVector.insert(tempVector.begin(), arraystring.begin() + IndexCount * i, arraystring.begin() + IndexCount * (i + 1));
 			}
@@ -196,7 +163,7 @@ int main() {
 			{
 				tempVector.insert(tempVector.begin(), arraystring.begin() + IndexCount * i, arraystring.end());
 			}			
-			std::cout << "vec " << i << ": ";
+			std::cout << "vec " << i << ": " << tempVector.size() << endl;
 			//for (int j = 0; j < tempVector.size(); j++)
 			//	std::cout << tempVector[j] << " ";
 			//std::cout << std::endl;
@@ -204,20 +171,21 @@ int main() {
 			//futurevector.push_back(future);
 		}
 
-		std::cout << " =======  sleep ========= " << std::this_thread::get_id() << std::endl;
-		std::this_thread::sleep_for(std::chrono::microseconds(900));
-
-		std::cout << " =======  commit all ========= " << std::this_thread::get_id() << " idlsize=" << executor.idlCount() << std::endl;
-
-		std::cout << " =======  sleep ========= " << std::this_thread::get_id() << std::endl;
-		std::this_thread::sleep_for(std::chrono::seconds(3));
-
 		//方法二，使用迭代器将容器中数据输出
-		for (int j = 0; j < futurevector.size(); j++)
-			futurevector[j].get();
+		//for (int j = 0; j < futurevector.size(); j++)
+		//	futurevector[j].get();
+		
+		//for (vector<string>::iterator it = vectorstring.begin(); it != vectorstring.end(); it++) {
+		//	cout << *it << endl;
+		//}
+
+		//for (int j = 0; j < vectorstring.size(); j++)
+		//	std::cout << vectorstring[j] << " ";
+		//std::cout << std::endl;
+		clock_t end = clock();
+		cout << (end - start) << "ms" << endl;
 
 		std::cout << "end... " << std::this_thread::get_id() << std::endl;
-
 		return 0;
 	}
 	catch (std::exception& e) {

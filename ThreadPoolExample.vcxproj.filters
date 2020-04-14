@@ -21,13 +21,16 @@
     <ClInclude Include="dirent.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\head\ballDetect.h">
+    <ClInclude Include="include\head\BilliardsRemap.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\head\I_BilliardsComDef.h">
+    <ClInclude Include="include\head\CommonUtils.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\head\svm.h">
+    <ClInclude Include="include\head\IniParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\head\CommonDefine.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -36,6 +39,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\BilliardsRemap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\CommonUtils.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\IniParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -30,7 +30,7 @@ namespace std
 		atomic<int>  _idlThrNum{ 0 };   //空闲线程数量
 
 	public:
-		inline threadpool(unsigned short size = 4) { addThread(size); }
+		inline threadpool(unsigned short size = 5) { addThread(size); }
 		inline ~threadpool()
 		{
 			_run = false;

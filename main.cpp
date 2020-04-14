@@ -20,8 +20,8 @@ cv::Mat desk;
 string strDataDir, strCalibPath;
 
 void RemapImage(vector<string> vectorstring)
-{
-	printf("  hello, remap1 !  %d\n", std::this_thread::get_id());		
+{	
+	std::cout << "进入线程执行..." << std::this_thread::get_id() << endl;
 	for (int index = 0; index < vectorstring.size(); index++)
 	{
 		cv::Mat m_curImage = cv::imread(vectorstring[index]);
@@ -32,7 +32,7 @@ void RemapImage(vector<string> vectorstring)
 		}
 		catch (const cv::Exception& e)
 		{
-			cout << "cv::remap exception, error code: " << e.code << ", error: " << e.err << endl;
+			std::cout << "cv::remap exception, error code: " << e.code << ", error: " << e.err << endl;
 		}		
 	}
 }
@@ -60,7 +60,7 @@ public:
 ///////////////////////////此处保留，供其他方式调用线程池使用
 
 bool initParams() {
-	cout << "正在初始化参数!" << endl;
+	std::cout << "正在初始化参数!" << endl;
 	//从config配置文件中读取相关参数
 	std::string strCfgFile = CommonUtils::getCurExeFilePath() + "config" + DEFAULT_SYMBOL_SLASH + "billCamera.cfg";
 	if (!CommonUtils::isFileExist(strCfgFile))
@@ -92,7 +92,7 @@ bool initParams() {
 //从给定的目录中遍历所有的BMP图片，返回vector<string>
 bool readBmpFiles(vector<string>&imageVector)
 {
-	cout << "正在读取所有图片!" << endl;
+	std::cout << "正在读取所有图片!" << endl;
 	dirent* p_file = NULL;
 	const char* input_path = strDataDir.c_str();
 	DIR* input_dir = opendir(input_path);
@@ -133,18 +133,18 @@ int main() {
 		std::threadpool executor{ ThreadCount };
 
 		if (initParams() != 1) {
-			cout << "初始化参数失败，请检测路径!" << endl;
+			std::cout << "初始化参数失败，请检测路径!" << endl;
 			return 0;
 		}
 
 		vector<string> arraystring(1000);
 		if (!readBmpFiles(arraystring)) {
-			cout << "读取图片列表失败，请检查目录!" << endl;
+			std::cout << "读取图片列表失败，请检查目录!" << endl;
 			return 0;
 		}
 
 		int ImageCount = arraystring.size();
-		cout << "图片共有" << ImageCount << "张。" << endl;
+		std::cout << "图片共有" << ImageCount << "张。" << endl;
 		int IndexCount = 0;
 		if (ImageCount % ThreadCount != 0) {
 			IndexCount = ImageCount / ThreadCount + 1;
@@ -153,7 +153,7 @@ int main() {
 			IndexCount = ImageCount / ThreadCount;
 		}
 
-		cout << "每个线程池大约" << IndexCount << "张。" << endl;
+		std::cout << "每个线程池大约" << IndexCount << "张。" << endl;
 		std::vector< std::future<void> > results;
 		for (int i = 0; i < ThreadCount; i++)
 		{
@@ -171,7 +171,7 @@ int main() {
 			//std::cout << std::endl;
 			results.emplace_back(executor.commit(RemapImage, tempVector));
 		}
-		std::cout << " =======  commit all2 ========= " << std::this_thread::get_id() << std::endl;
+		std::cout << "所有线程已经全部提交完毕。" << std::this_thread::get_id() << std::endl;
 		
 		//for (auto && result : results)
 		//	std::cout << result.get() << ' ';
@@ -185,9 +185,8 @@ int main() {
 		std::cout << std::endl;
 		
 		clock_t end = clock();
-		cout << "共消耗时间：" << (end - start) << "ms" << endl;
-
-		std::cout << "成功执行... " << std::this_thread::get_id() << std::endl;
+		std::cout << "成功结束，共消耗时间：" << (end - start) << "ms" << endl;
+		
 		return 0;
 	}
 	catch (std::exception& e) {
